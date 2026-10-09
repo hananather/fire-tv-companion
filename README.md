@@ -19,6 +19,8 @@ cd fire-tv-companion
 
 The installer builds the app locally, places it in `~/Applications`, and opens it. Subsequent launches do not need the source folder or compiler. Builds are locally signed; this project does not currently ship a notarized installer.
 
+An Apple-silicon app ZIP is also available in the [0.2.0 release](https://github.com/hananather/fire-tv-companion/releases/tag/v0.2.0). It is locally signed, without Developer ID signing or notarization. The source-build procedure above is the supported installation route.
+
 ## First connection
 
 1. Switch the TV on and enable **Settings → Display & Audio → AirPlay & HomeKit → AirPlay**.
@@ -65,7 +67,7 @@ An independent iPhone AirPlay session can replace the TV's Mac output. Protected
 
 The app is written in Swift and uses macOS frameworks. It has no package-manager dependencies. The build script contains an isolated workaround for a duplicate SwiftBridging module map left by some Command Line Tools upgrades; it does not edit developer tools.
 
-Automated checks cover the local connection core, sanitized diagnostics, and compilation. They do not operate a physical TV. The [dated baseline](docs/evidence/airplay-baseline-2026-10-09.json) records display and network conditions; the [local app check](docs/verification.md) records the later UI checks and their limits. The bundled test clip is a generated color-bar animation and quiet tone, with no user media.
+Automated checks cover the local connection core, sanitized diagnostics, and compilation. [Hosted checks passed on macOS 15 and 26](https://github.com/hananather/fire-tv-companion/actions/runs/37991542290); they do not operate a physical TV. The [dated baseline](docs/evidence/airplay-baseline-2026-10-09.json) records display and network conditions; the [local app check](docs/verification.md) records the later UI checks and their limits. The bundled test clip is a generated color-bar animation and quiet tone, with no user media.
 
 ## Sources
 

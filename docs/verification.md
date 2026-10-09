@@ -18,3 +18,5 @@ The installed 0.2.0 app was built from this source and reopened after installati
 The app improves repeated use through saved pairing, reusable remote sessions, bounded availability recovery, and direct access to native display and audio controls. These changes do not demonstrate lower visible AirPlay latency. Native display reconnection and other apps' window placement use macOS controls.
 
 The build targets Apple silicon and macOS 15 or later. Compilation on a hosted macOS runner does not verify a physical television, a different Mac, or a different network. The dated [network and display baseline](evidence/airplay-baseline-2026-10-09.json) contains sanitized measurements, not device names, addresses, or pairing credentials.
+
+[GitHub build and test run 37991542290](https://github.com/hananather/fire-tv-companion/actions/runs/37991542290) passed on macOS 15 and 26 for source commit `28399c3a6a64f3af08ca2dc73fdfec0a47ae56bb`. Both runners compiled the core tests and app, ran diagnostics privacy tests, and produced an app ZIP. Later documentation updates do not change those tested source files.
