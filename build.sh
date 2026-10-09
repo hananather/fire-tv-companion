@@ -45,7 +45,7 @@ source_files=("$task_dir/app.swift" "$task_dir/Core.swift" "$task_dir/VideoPlaye
 if [[ -f "$task_dir/Dashboard.swift" ]]; then source_files+=("$task_dir/Dashboard.swift"); fi
 "$swift_bin" "${compiler_flags[@]}" \
   -framework AppKit -framework CryptoKit -framework Security -framework Network \
-  -framework AVKit -framework AVFoundation -framework CoreAudio -framework IOKit -framework WebKit \
+  -framework AVKit -framework AVFoundation -framework CoreAudio -framework IOKit \
   "${source_files[@]}" \
   -o "$build_dir/Fire TV Companion.app/Contents/MacOS/Fire TV Companion"
 
@@ -59,8 +59,8 @@ cat > "$build_dir/Fire TV Companion.app/Contents/Info.plist" <<'PLIST'
   <key>CFBundleName</key><string>Fire TV Companion</string>
   <key>CFBundleDisplayName</key><string>Fire TV Companion</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleVersion</key><string>2</string>
-  <key>CFBundleShortVersionString</key><string>0.2.0</string>
+  <key>CFBundleVersion</key><string>3</string>
+  <key>CFBundleShortVersionString</key><string>0.2.1</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSLocalNetworkUsageDescription</key><string>Find and pair with the Fire TV you select on your Wi-Fi network.</string>

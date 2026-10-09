@@ -43,7 +43,9 @@ func showTVVideoPlayer(url: URL? = nil, tvName: String? = nil) {
         tvVideoWindowController = TVVideoWindowController()
     }
     guard let controller = tvVideoWindowController else { return }
+    controller.prepareForPresentation()
     controller.setTargetName(tvName)
+    if controller.window?.isMiniaturized == true { controller.window?.deminiaturize(nil) }
     controller.showWindow(nil)
     controller.window?.makeKeyAndOrderFront(nil)
     NSApp.activate(ignoringOtherApps: true)
@@ -51,7 +53,7 @@ func showTVVideoPlayer(url: URL? = nil, tvName: String? = nil) {
 }
 
 private final class TVVideoWindowController: NSWindowController, NSWindowDelegate {
-    private let player = AVPlayer()
+    private var player: AVPlayer?
     private let playerView = AVPlayerView()
     private let routePicker = AVRoutePickerView()
     private let playButton = NSButton(title: "Play", target: nil, action: nil)
@@ -62,14 +64,16 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
     private var observations: [NSKeyValueObservation] = []
     private var itemObservation: NSKeyValueObservation?
     private var failureObserver: NSObjectProtocol?
+    private var endObserver: NSObjectProtocol?
     private var accessedURL: URL?
     private var playbackError: String?
+    private var reachedEnd = false
     private var targetName: String?
     private var screenObserver: NSObjectProtocol?
 
     var hasTVSession: Bool {
         guard window?.isVisible == true || window?.isMiniaturized == true else { return false }
-        if player.isExternalPlaybackActive { return true }
+        if player?.isExternalPlaybackActive == true { return true }
         guard let target = connectedTVScreen(matchingName: targetName) else { return false }
         return window?.screen === target
     }
@@ -77,6 +81,37 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
     func setTargetName(_ name: String?) {
         targetName = name
         updateDisplayButtons()
+    }
+
+    func prepareForPresentation() {
+        if player == nil {
+            let currentPlayer = AVPlayer()
+            currentPlayer.allowsExternalPlayback = true
+            currentPlayer.actionAtItemEnd = .pause
+            player = currentPlayer
+            playerView.player = currentPlayer
+            routePicker.player = currentPlayer
+            observations = [
+                currentPlayer.observe(\.isExternalPlaybackActive, options: [.new]) { [weak self] observedPlayer, _ in
+                    DispatchQueue.main.async {
+                        guard let self = self, self.player === observedPlayer else { return }
+                        self.updateStatus()
+                    }
+                },
+                currentPlayer.observe(\.timeControlStatus, options: [.new]) { [weak self] observedPlayer, _ in
+                    DispatchQueue.main.async {
+                        guard let self = self, self.player === observedPlayer else { return }
+                        self.updateStatus()
+                    }
+                }
+            ]
+        }
+        if screenObserver == nil {
+            screenObserver = NotificationCenter.default.addObserver(
+                forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
+            ) { [weak self] _ in self?.updateDisplayButtons() }
+        }
+        updateStatus()
     }
 
     init() {
@@ -89,11 +124,8 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
         centerWindowOnMac(window)
         super.init(window: window)
         window.delegate = self
-        player.allowsExternalPlayback = true
-        playerView.player = player
         playerView.controlsStyle = .inline
         playerView.showsFullScreenToggleButton = true
-        routePicker.player = player
         routePicker.isRoutePickerButtonBordered = true
         routePicker.setAccessibilityLabel("Choose AirPlay output")
         playButton.target = self
@@ -108,17 +140,6 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
         bringBackButton.bezelStyle = .rounded
         buildInterface(in: window)
         updateDisplayButtons()
-        screenObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main
-        ) { [weak self] _ in self?.updateDisplayButtons() }
-        observations = [
-            player.observe(\.isExternalPlaybackActive, options: [.new]) { [weak self] _, _ in
-                DispatchQueue.main.async { self?.updateStatus() }
-            },
-            player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
-                DispatchQueue.main.async { self?.updateStatus() }
-            }
-        ]
     }
 
     required init?(coder: NSCoder) { nil }
@@ -128,6 +149,7 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
         if let failureObserver = failureObserver {
             NotificationCenter.default.removeObserver(failureObserver)
         }
+        if let endObserver = endObserver { NotificationCenter.default.removeObserver(endObserver) }
         accessedURL?.stopAccessingSecurityScopedResource()
     }
 
@@ -146,7 +168,7 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
         fileLabel.textColor = .secondaryLabelColor
         statusLabel.font = .systemFont(ofSize: 12)
         let instructions = NSTextField(wrappingLabelWithString:
-            "Show on TV moves this window to your connected TV desktop. AirPlay sends the video through a compatible media receiver. Keep this window open or minimized; Sound settings controls the Mac’s audio output.")
+            "Keep this window visible for TV desktop video. Direct AirPlay media can continue while minimized. Closing releases playback resources. Sound settings controls the Mac’s audio output.")
         instructions.font = .systemFont(ofSize: 12)
         instructions.textColor = .secondaryLabelColor
         for view in [toolbar, playerView, statusLabel, instructions] {
@@ -188,8 +210,14 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
     }
 
     @objc private func togglePlayback() {
-        guard player.currentItem != nil else { return }
-        if player.timeControlStatus == .paused { player.play() }
+        guard let player = player, let item = player.currentItem else { return }
+        if player.timeControlStatus == .paused {
+            if reachedEnd, CMTimeCompare(player.currentTime(), item.duration) >= 0 {
+                player.seek(to: .zero)
+            }
+            reachedEnd = false
+            player.play()
+        }
         else { player.pause() }
     }
 
@@ -207,22 +235,24 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
             reportError("This video could not be opened. Check that the file is available and readable.")
             return
         }
-        player.pause()
-        itemObservation = nil
-        if let failureObserver = failureObserver {
-            NotificationCenter.default.removeObserver(failureObserver)
-            self.failureObserver = nil
+        prepareForPresentation()
+        guard let player = player else {
+            if scopedAccess { url.stopAccessingSecurityScopedResource() }
+            return
         }
+        player.pause()
+        removeItemObservers()
         player.replaceCurrentItem(with: nil)
         accessedURL?.stopAccessingSecurityScopedResource()
         accessedURL = scopedAccess ? url : nil
         playbackError = nil
+        reachedEnd = false
         fileLabel.stringValue = url.lastPathComponent
         let item = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: item)
         itemObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
             DispatchQueue.main.async {
-                guard let self = self, self.player.currentItem === item else { return }
+                guard let self = self, self.player?.currentItem === item else { return }
                 if item.status == .failed {
                     self.reportError(item.error?.localizedDescription ?? "This video format could not be played.")
                 } else {
@@ -233,15 +263,26 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
         failureObserver = NotificationCenter.default.addObserver(
             forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: item, queue: .main
         ) { [weak self] notification in
+            guard let self = self, let notifiedItem = notification.object as? AVPlayerItem,
+                  self.player?.currentItem === notifiedItem else { return }
             let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
-            self?.reportError(error?.localizedDescription ?? "Playback stopped because the video could not be played.")
+            self.reportError(error?.localizedDescription ?? "Playback stopped because the video could not be played.")
+        }
+        endObserver = NotificationCenter.default.addObserver(
+            forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
+        ) { [weak self] notification in
+            guard let self = self, let notifiedItem = notification.object as? AVPlayerItem,
+                  self.player?.currentItem === notifiedItem else { return }
+            self.player?.pause()
+            self.reachedEnd = true
+            self.updateStatus()
         }
         updateStatus()
     }
 
     private func updateStatus() {
-        playButton.isEnabled = player.currentItem?.status == .readyToPlay
-        playButton.title = player.timeControlStatus == .paused ? "Play" : "Pause"
+        playButton.isEnabled = player?.currentItem?.status == .readyToPlay
+        playButton.title = player == nil || player?.timeControlStatus == .paused ? "Play" : "Pause"
         NotificationCenter.default.post(name: tvVideoSessionDidChange, object: nil)
         if let error = playbackError {
             statusLabel.stringValue = "Unable to play: \(error)"
@@ -249,7 +290,7 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
             return
         }
         statusLabel.textColor = .labelColor
-        guard let item = player.currentItem else {
+        guard let player = player, let item = player.currentItem else {
             statusLabel.stringValue = "Open a video to begin."
             return
         }
@@ -273,8 +314,42 @@ private final class TVVideoWindowController: NSWindowController, NSWindowDelegat
     }
 
     func windowWillClose(_ notification: Notification) {
-        player.pause()
-        DispatchQueue.main.async { NotificationCenter.default.post(name: tvVideoSessionDidChange, object: nil) }
+        player?.pause()
+        removeItemObservers()
+        observations.forEach { $0.invalidate() }
+        observations.removeAll()
+        player?.currentItem?.cancelPendingSeeks()
+        player?.replaceCurrentItem(with: nil)
+        playerView.player = nil
+        routePicker.player = nil
+        player = nil
+        if let screenObserver = screenObserver {
+            NotificationCenter.default.removeObserver(screenObserver)
+            self.screenObserver = nil
+        }
+        accessedURL?.stopAccessingSecurityScopedResource()
+        accessedURL = nil
+        playbackError = nil
+        reachedEnd = false
+        fileLabel.stringValue = "No video selected"
+        updateStatus()
+        DispatchQueue.main.async { [weak self] in
+            if let self = self, tvVideoWindowController === self,
+               self.window?.isVisible != true, self.window?.isMiniaturized != true {
+                tvVideoWindowController = nil
+            }
+            NotificationCenter.default.post(name: tvVideoSessionDidChange, object: nil)
+        }
+    }
+
+    private func removeItemObservers() {
+        itemObservation?.invalidate()
+        itemObservation = nil
+        for observer in [failureObserver, endObserver].compactMap({ $0 }) {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        failureObserver = nil
+        endObserver = nil
     }
 
     private func updateDisplayButtons() {

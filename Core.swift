@@ -207,6 +207,7 @@ final class FireTVClient {
     private var evidence: [Int: RequestEvidence] = [:]
     private var activeTasks: Set<Int> = []
     private var pinRejected = false
+    private var invalidated = false
 
     init(_ configuration: PairingConfiguration) {
         self.configuration = configuration
@@ -224,7 +225,18 @@ final class FireTVClient {
 
     deinit { session?.invalidateAndCancel() }
 
-    func invalidate() { session.invalidateAndCancel() }
+    func invalidate() {
+        evidenceLock.lock()
+        invalidated = true
+        evidenceLock.unlock()
+        session.invalidateAndCancel()
+    }
+
+    private var isInvalidated: Bool {
+        evidenceLock.lock()
+        defer { evidenceLock.unlock() }
+        return invalidated
+    }
 
     func request(_ method: String, _ path: String, body: [String: String]? = nil,
                  authenticated: Bool = true, wake: Bool = false,
@@ -253,6 +265,12 @@ final class FireTVClient {
     private func perform(_ method: String, _ path: String, body: [String: String]? = nil,
                          authenticated: Bool, wake: Bool,
                          completion: @escaping (NetworkOutcome) -> Void) {
+        guard !isInvalidated else {
+            DispatchQueue.main.async {
+                completion(NetworkOutcome(result: .failure(CompanionError.cancelled), hasHTTPResponse: false, evidence: nil))
+            }
+            return
+        }
         let request: URLRequest
         do {
             try configuration.validate(requireCertificate: !wake)
@@ -328,6 +346,7 @@ final class FireTVClient {
 
     private func waitUntilAwake(remaining: Int, completion: @escaping (Bool) -> Void) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [self] in
+            guard !isInvalidated else { completion(false); return }
             self.perform("GET", "/v1/FireTV", authenticated: false, wake: false) { outcome in
                 if outcome.hasHTTPResponse { completion(true) }
                 else if remaining > 1 {
@@ -500,15 +519,30 @@ struct DiscoveredTV: Equatable {
 
 final class TVDiscovery: NSObject, NetServiceBrowserDelegate, NetServiceDelegate {
     private let callback: ([DiscoveredTV]) -> Void
-    private let browser = NetServiceBrowser()
+    private let makeBrowser: () -> NetServiceBrowser
+    private var browser: NetServiceBrowser?
     private var services: [String: NetService] = [:]
     private var entries: [String: DiscoveredTV] = [:]
     private var started = false
 
-    init(callback: @escaping ([DiscoveredTV]) -> Void) {
+    init(makeBrowser: @escaping () -> NetServiceBrowser = { NetServiceBrowser() },
+         callback: @escaping ([DiscoveredTV]) -> Void) {
+        self.makeBrowser = makeBrowser
         self.callback = callback
         super.init()
-        browser.delegate = self
+    }
+
+    deinit {
+        let browser = self.browser
+        let services = Array(self.services.values)
+        browser?.delegate = nil
+        services.forEach { $0.delegate = nil }
+        let cleanup = {
+            browser?.stop()
+            services.forEach { $0.stopMonitoring(); $0.stop() }
+        }
+        if Thread.isMainThread { cleanup() }
+        else { DispatchQueue.main.async(execute: cleanup) }
     }
 
     func start() {
@@ -516,30 +550,43 @@ final class TVDiscovery: NSObject, NetServiceBrowserDelegate, NetServiceDelegate
         guard !started else { return }
         started = true
         entries.removeAll()
+        let browser = makeBrowser()
+        self.browser = browser
+        browser.delegate = self
         publish()
+        guard started, self.browser === browser else { return }
         browser.searchForServices(ofType: "_airplay._tcp.", inDomain: "local.")
     }
 
     func stop() {
         guard Thread.isMainThread else { DispatchQueue.main.async { [weak self] in self?.stop() }; return }
-        browser.stop()
+        started = false
+        let browser = self.browser
+        self.browser = nil
+        browser?.delegate = nil
+        browser?.stop()
         services.values.forEach { $0.stopMonitoring(); $0.stop(); $0.delegate = nil }
         services.removeAll()
-        started = false
+        entries.removeAll()
     }
 
     private func key(_ service: NetService) -> String { "\(service.domain)|\(service.type)|\(service.name)" }
 
     func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
+        guard started, self.browser === browser else { return }
         let identifier = key(service)
-        services[identifier]?.stopMonitoring()
-        services[identifier]?.stop()
+        if let oldService = services[identifier], oldService !== service {
+            oldService.stopMonitoring()
+            oldService.stop()
+            oldService.delegate = nil
+        }
         services[identifier] = service
         service.delegate = self
         service.resolve(withTimeout: 5)
     }
 
     func netServiceBrowser(_ browser: NetServiceBrowser, didRemove service: NetService, moreComing: Bool) {
+        guard started, self.browser === browser else { return }
         let identifier = key(service)
         if let resolved = services.removeValue(forKey: identifier) {
             resolved.stopMonitoring()
@@ -551,6 +598,7 @@ final class TVDiscovery: NSObject, NetServiceBrowserDelegate, NetServiceDelegate
     }
 
     func netServiceDidResolveAddress(_ service: NetService) {
+        guard started, let active = services[key(service)], active === service else { return }
         service.startMonitoring()
         update(service)
     }

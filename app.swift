@@ -11,7 +11,7 @@ private struct TVChoice {
     let saved: Bool
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var window: NSWindow!
     private var statusItem: NSStatusItem!
     private var awakeMenuItem: NSMenuItem!
@@ -41,44 +41,101 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var generation = 0
     private var commandsSent = 0
     private var observers: [NSObjectProtocol] = []
+    private var discoveryDeadline: DispatchWorkItem?
     private var keepAwake = false
     private var assertion: IOPMAssertionID = 0
     private lazy var discovery = TVDiscovery { [weak self] devices in
         self?.discovered = devices
-        if self?.isBusy == false { self?.rebuildDevices() }
+        if let self = self, !self.isBusy, self.window?.isVisible == true, !NSApp.isHidden {
+            self.rebuildDevices()
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMenus()
+        do { savedConfiguration = try PairingConfiguration.load() }
+        catch { showError(error) }
+        rebuildDevices()
+        for name in [NSApplication.didChangeScreenParametersNotification, tvVideoSessionDidChange,
+                     ProcessInfo.thermalStateDidChangeNotification] {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) {
+                [weak self] _ in self?.updateConnection()
+            })
+        }
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.stopDiscovery()
+            self?.releaseAssertion()
+        })
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self = self else { return }
+            self.updateConnection()
+            if self.window?.isKeyWindow == true, NSApp.isActive { self.startDiscovery() }
+        })
+        if !CommandLine.arguments.contains("--background") { showPrimaryWindow() }
+    }
+
+    private func buildRemoteWindow() {
+        guard window == nil else { return }
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 430, height: 790),
                           styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "Fire TV Companion"
         centerWindowOnMac(window)
         window.isReleasedWhenClosed = false
+        window.delegate = self
         buildInterface()
-        refreshAudioOutputs()
-        do { savedConfiguration = try PairingConfiguration.load() }
-        catch { showError(error) }
-        rebuildDevices()
-        discovery.start()
-        for name in [NSApplication.didChangeScreenParametersNotification, tvVideoSessionDidChange] {
-            observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) {
-                [weak self] _ in self?.updateConnection()
-            })
-        }
-        if !CommandLine.arguments.contains("--background") { showRemote() }
-        if client != nil { refreshApps(silent: true, retries: 2) }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        showRemote()
+        showPrimaryWindow()
         return true
     }
+    private func showPrimaryWindow() {
+        if savedConfiguration?.token?.isEmpty == false { showDashboard() }
+        else { showRemote() }
+    }
     func applicationWillTerminate(_ notification: Notification) {
-        discovery.stop()
+        stopDiscovery()
         observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }
         releaseAssertion()
+    }
+    func applicationDidHide(_ notification: Notification) { stopDiscovery() }
+    func applicationDidResignActive(_ notification: Notification) { stopDiscovery() }
+    func applicationDidBecomeActive(_ notification: Notification) {
+        if window?.isKeyWindow == true { startDiscovery() }
+    }
+    func windowWillClose(_ notification: Notification) {
+        if notification.object as? NSWindow === window { stopDiscovery() }
+    }
+    func windowDidMiniaturize(_ notification: Notification) {
+        if notification.object as? NSWindow === window { stopDiscovery() }
+    }
+    func windowDidBecomeKey(_ notification: Notification) {
+        if notification.object as? NSWindow === window { startDiscovery() }
+    }
+    private func startDiscovery() {
+        guard window?.isVisible == true, window?.isMiniaturized == false, !NSApp.isHidden,
+              discoveryDeadline == nil else { return }
+        discovery.start()
+        let duration = savedConfiguration == nil ? 30.0 : 15.0
+        let deadline = DispatchWorkItem { [weak self] in self?.stopDiscovery(reportNotFound: true) }
+        discoveryDeadline = deadline
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: deadline)
+    }
+    private func stopDiscovery(reportNotFound: Bool = false) {
+        discoveryDeadline?.cancel()
+        discoveryDeadline = nil
+        discovery.stop()
+        if reportNotFound, selected == nil, discovered.isEmpty, !isBusy, window?.isVisible == true {
+            devicePicker.removeAllItems()
+            devicePicker.addItem(withTitle: "No TV found · Retry")
+            status.stringValue = "No TV found. Check the same Wi-Fi and Local Network access, then click Retry."
+        }
     }
 
     private func buildMenus() {
@@ -98,6 +155,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
         editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
         editItem.submenu = editMenu
+        let windowsItem = NSMenuItem()
+        menu.addItem(windowsItem)
+        let windowsMenu = NSMenu(title: "Window")
+        for (title, action) in [("Remote", #selector(showRemote)), ("Dashboard", #selector(showDashboard)), ("Video", #selector(showVideo))] {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self
+            windowsMenu.addItem(item)
+        }
+        windowsMenu.addItem(.separator())
+        windowsMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windowsMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windowsItem.submenu = windowsMenu
+        NSApp.windowsMenu = windowsMenu
         NSApp.mainMenu = menu
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(systemSymbolName: "tv", accessibilityDescription: "Fire TV Companion")
@@ -118,9 +188,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showRemote() {
+        buildRemoteWindow()
         refreshAudioOutputs()
+        if window?.isMiniaturized == true { window?.deminiaturize(nil) }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        startDiscovery()
+        if !isBusy, client != nil, installedApps.isEmpty { refreshApps(silent: true, retries: 2) }
     }
     @objc private func showVideo() { showTVVideoPlayer(tvName: selected?.name) }
     @objc private func showDashboard() { showTVDashboard(tvName: selected?.name) }
@@ -154,14 +228,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private func updateKeepAwake() {
         let sessionActive = connectedTVScreen(matchingName: selected?.name) != nil || tvVideoSessionIsActive()
-        if keepAwake && sessionActive && assertion == 0 {
+        let thermal = ProcessInfo.processInfo.thermalState
+        let underThermalPressure = thermal == .serious || thermal == .critical
+        awakeMenuItem.title = keepAwake && underThermalPressure
+            ? "Keep awake during TV session (paused while Mac is warm)"
+            : "Keep awake during TV session"
+        if keepAwake && sessionActive && !underThermalPressure && assertion == 0 {
             let result = IOPMAssertionCreateWithName(kIOPMAssertionTypeNoDisplaySleep as CFString,
                 IOPMAssertionLevel(kIOPMAssertionLevelOn), "Fire TV Companion TV session" as CFString, &assertion)
             if result != kIOReturnSuccess {
                 assertion = 0
                 status.stringValue = "The Mac could not keep this TV session awake."
             }
-        } else if !keepAwake || !sessionActive { releaseAssertion() }
+        } else if !keepAwake || !sessionActive || underThermalPressure { releaseAssertion() }
     }
     private func releaseAssertion() {
         if assertion != 0 { IOPMAssertionRelease(assertion); assertion = 0 }
@@ -299,6 +378,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }) {
             choices.append(TVChoice(id: tv.deviceID, name: tv.name, host: tv.host, deviceID: tv.deviceID, saved: false))
         }
+        if let current = selected, !current.saved, !choices.contains(where: { $0.id == current.id }) {
+            choices.append(current)
+        }
         devicePicker.removeAllItems()
         devicePicker.addItem(withTitle: choices.isEmpty ? "Searching for TVs…" : "Choose a TV…")
         devicePicker.addItems(withTitles: choices.map { "\($0.name) · \($0.host)\($0.saved ? " · saved" : "")" })
@@ -399,8 +481,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private func retryConnection() {
         guard !isBusy else { return }
-        discovery.stop()
-        discovery.start()
+        stopDiscovery()
+        startDiscovery()
         status.stringValue = "Searching for your TV. Allow Local Network access if asked."
         if client != nil { refreshApps(silent: false, retries: 2) }
     }

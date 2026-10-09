@@ -1,10 +1,10 @@
 # Fire TV Companion
 
-A Mac menu-bar app for controlling an Amazon Fire TV, opening existing calendar and task apps, and playing local video on an AirPlay desktop.
+A Mac menu-bar app for controlling an Amazon Fire TV, opening Google Calendar, and playing local video on an AirPlay desktop.
 
 The first working setup used an M4 Pro MacBook Pro and a 50-inch Fire TV Omni purchased in 2022. macOS reported a **1920 × 1080, 60 Hz extended AirPlay display**, alongside the built-in screen and a wired Dell display. Remote pairing, installed-app discovery, Home commands, and volume commands were accepted by that TV.
 
-macOS provides the native AirPlay desktop. The companion's local remote uses the TV's community-documented Lightning interface; its Dashboard launcher opens your existing apps and browser pages.
+macOS provides the native AirPlay desktop. The companion's local remote uses the TV's community-documented Lightning interface. Its Dashboard launcher reuses an installed Google Calendar web app or opens the official site in your default browser.
 
 ## Install
 
@@ -17,9 +17,9 @@ cd fire-tv-companion
 ./install.sh
 ```
 
-The installer builds the app locally, places it in `~/Applications`, and opens it. Subsequent launches do not need the source folder or compiler. Builds are locally signed; this project does not currently ship a notarized installer.
+The installer builds the app locally, places it in `~/Applications`, and opens it. Quit a running copy before reinstalling; the installer refuses to overwrite it while running. Subsequent launches do not need the source folder or compiler. Builds are locally signed; this project does not currently ship a notarized installer.
 
-An Apple-silicon app ZIP is also available in the [0.2.0 release](https://github.com/hananather/fire-tv-companion/releases/tag/v0.2.0). It is locally signed, without Developer ID signing or notarization. The source-build procedure above is the supported installation route.
+An Apple-silicon app ZIP is also available in the [latest release](https://github.com/hananather/fire-tv-companion/releases/latest). It is locally signed, without Developer ID signing or notarization. The source-build procedure above is the supported installation route.
 
 ## First connection
 
@@ -32,13 +32,17 @@ Remote pairing and AirPlay pairing are separate. The companion saves its remote 
 
 ## Daily use
 
-The TV icon in the menu bar opens **Remote**, **Dashboard**, **Video**, **Display settings**, and **Sound settings**. Closing the remote window leaves the app running in the menu bar; **Quit** exits it. Remote keyboard navigation uses arrows, Return, and Space only while the remote pad has focus. The app assigns no Fn shortcut.
+After pairing, normal launches open **Dashboard**. Remote setup appears on the first launch. The TV icon in the menu bar opens **Remote**, **Dashboard**, **Video**, **Display settings**, and **Sound settings**; the native Window menu also opens the three app windows. Closing the remote leaves the app running in the menu bar; **Quit** exits it. Remote keyboard navigation uses arrows, Return, and Space only while the remote pad has focus. The app assigns no Fn shortcut.
 
-**Dashboard** opens installed calendar and task apps, including Notion Calendar or Apple Calendar and Notion, Reminders, or Linear. You can save two optional HTTPS page links, which open in your default browser's existing signed-in session. App choices and links stay in this Mac's preferences. In each opened app, use its native **Window → Move to your TV** and **Fill** controls, or **Move & Resize → Left / Right** for a side-by-side layout. The launcher keeps your existing data in its original apps; window placement and reconnection remain native macOS actions.
+**Dashboard** opens Google Calendar. It brings a running Google Calendar app to the front or launches an installed Chrome web app named **Google Calendar**. If none is installed, it opens [Google Calendar](https://calendar.google.com/) in your default browser. During that companion process, further presses become **Return to browser**: they show the browser, where you select your existing calendar tab. **Open new calendar page** is a separate action that may create another tab.
 
-**Video** opens a local file in the **TV Video** window. Press **Play** to start it. With the selected TV connected as an extended display, **Show on TV** moves this app's video window there, and **Bring back** returns it to the Mac. Both placement controls and advancing video frames on the TV desktop passed the local app check. The separate native AirPlay picker offers AVPlayer media routing, which was not verified as active in this session.
+To give Google Calendar its own window, optionally open it in Chrome and choose **More → Cast, save, and share → Install page as app**. Keep the app name **Google Calendar** and complete the install prompts. This is Chrome's [documented web-app installation route](https://support.google.com/chrome/answer/9658361?hl=en).
 
-**Keep awake during TV session** is an explicit menu-bar toggle, off by default. While enabled, it asks macOS to prevent idle display sleep when the selected TV display or the player's TV session is active. Turning it off, ending that session, or quitting releases the request.
+In the Google Calendar window, use **Window → Move to your TV**, then **Fill**. Keep the launcher on your Mac. Your calendar remains in Google Calendar, using the app or browser's sign-in; the companion does not read or copy it. Window placement and AirPlay reconnection remain native macOS actions.
+
+**Video** opens a local file in the **TV Video** window. Press **Play** to start it. With the selected TV connected as an extended display, **Show on TV** moves this app's video window there, and **Bring back** returns it to the Mac. Keep that window visible for TV-desktop video. Closing it releases playback resources and clears the selected file; reopening starts empty. Both placement controls and advancing video frames on the TV desktop passed the local app check. The separate native AirPlay picker offers AVPlayer media routing, which was not verified as active in this session.
+
+**Keep awake during TV session** is an explicit menu-bar toggle, off by default. While enabled, it asks macOS to prevent idle display sleep when the selected TV display or the player's TV session is active. Turning it off, ending that session, quitting, Mac sleep, or serious/critical thermal pressure releases the request.
 
 To start a new app process without opening the remote window:
 
@@ -48,7 +52,7 @@ open -a "$HOME/Applications/Fire TV Companion.app" --args --background
 
 The remote provides navigation, Home, Back, Menu, play/pause, volume, installed-app launching, and text entry into the TV's active input. The wake action starts the TV's remote service; physical panel wake depends on the TV's firmware and state.
 
-See [display tuning](docs/tuning.md) for measured conditions and lag tests, and [audio configurations](docs/audio.md) for speaker choices.
+See [background efficiency](docs/efficiency.md) for resource measurements and idle behavior, [display tuning](docs/tuning.md) for lag tests, and [audio configurations](docs/audio.md) for speaker choices.
 
 ## Evidence and limits
 

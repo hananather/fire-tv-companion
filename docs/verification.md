@@ -20,3 +20,21 @@ The app improves repeated use through saved pairing, reusable remote sessions, b
 The build targets Apple silicon and macOS 15 or later. Compilation on a hosted macOS runner does not verify a physical television, a different Mac, or a different network. The dated [network and display baseline](evidence/airplay-baseline-2026-10-09.json) contains sanitized measurements, not device names, addresses, or pairing credentials.
 
 [GitHub build and test run 37991542290](https://github.com/hananather/fire-tv-companion/actions/runs/37991542290) passed on macOS 15 and 26 for source commit `28399c3a6a64f3af08ca2dc73fdfec0a47ae56bb`. Both runners compiled the core tests and app, ran diagnostics privacy tests, and produced an app ZIP. Later documentation updates do not change those tested source files.
+
+## Version 0.2.1 · October 9, 2026
+
+The final installed build was checked on the same Mac and TV, with the built-in display and the 1080p, 60 Hz extended TV desktop connected. The wired monitor was absent during these checks.
+
+| Check | Observation |
+| --- | --- |
+| Paired launch | A fresh process opened the Google Calendar-only Dashboard without opening Remote. Dashboard reported TV connected, extended desktop. |
+| Google Calendar | Installed the official calendar site as a Chrome web app using the existing signed-in profile. Native Window controls moved its window to the TV and filled that display. Calendar contents were not edited. |
+| Repeated calendar actions | Two Dashboard presses activated the same Google Calendar app. The native app exposed one calendar window and the browser inventory retained one calendar page. |
+| Saved pairing | Opening Remote loaded installed TV apps without another PIN. This check did not send a navigation or volume command. |
+| End and replay | The generated clip reached 15 seconds and paused. Play returned the timeline to zero and reported Playing. |
+| Minimized Video | Window → Video restored the minimized player with playback advancing. |
+| Closed Video | Closing during playback and reopening produced an empty player. Loading the generated clip again played successfully; closing it released the item again. |
+| Idle profile | With Remote and Video closed, the companion hidden, and Google Calendar visible on TV, the [45-second report](evidence/resource-google-calendar-2026-10-09.json) recorded 0.0167% of one CPU core and 52.70–52.80 MiB physical footprint. Thermal category remained nominal. |
+| Local checks | Swift core lifecycle checks, two diagnostics privacy tests, app compilation, optional profiler compilation, and strict local-signature verification passed. |
+
+Thermal-pressure and sleep handlers were reviewed in source; no forced heating or sleep test was performed. The short idle sample does not certify sustained temperature, energy consumption, or AirPlay latency. The earlier 0.2.0 observations above remain dated evidence for that version.
