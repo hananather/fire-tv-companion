@@ -38,3 +38,5 @@ The final installed build was checked on the same Mac and TV, with the built-in 
 | Local checks | Swift core lifecycle checks, two diagnostics privacy tests, app compilation, optional profiler compilation, and strict local-signature verification passed. |
 
 Thermal-pressure and sleep handlers were reviewed in source; no forced heating or sleep test was performed. The short idle sample does not certify sustained temperature, energy consumption, or AirPlay latency. The earlier 0.2.0 observations above remain dated evidence for that version.
+
+[GitHub build and test run 37996284123](https://github.com/hananather/fire-tv-companion/actions/runs/37996284123) passed on macOS 15 and 26 for source commit `93cb7d7852aafbfc51534a155a3232414875615d`. Both runners passed the Swift core and diagnostics checks, compiled the app and optional profiler, and produced an app ZIP. The subsequent documentation commit adds this evidence link without changing the measured or tested source files.

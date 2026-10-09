@@ -71,7 +71,7 @@ An independent iPhone AirPlay session can replace the TV's Mac output. Protected
 
 The app is written in Swift and uses macOS frameworks. It has no package-manager dependencies. The build script contains an isolated workaround for a duplicate SwiftBridging module map left by some Command Line Tools upgrades; it does not edit developer tools.
 
-Automated checks cover the local connection core, sanitized diagnostics, and compilation. [Hosted checks passed on macOS 15 and 26](https://github.com/hananather/fire-tv-companion/actions/runs/37991542290); they do not operate a physical TV. The [dated baseline](docs/evidence/airplay-baseline-2026-10-09.json) records display and network conditions; the [local app check](docs/verification.md) records the later UI checks and their limits. The bundled test clip is a generated color-bar animation and quiet tone, with no user media.
+Automated checks cover the local connection core, sanitized diagnostics, and compilation. [Version 0.2.1 source checks passed on macOS 15 and 26](https://github.com/hananather/fire-tv-companion/actions/runs/37996284123); they do not operate a physical TV. The [dated baseline](docs/evidence/airplay-baseline-2026-10-09.json) records display and network conditions; the [local app check](docs/verification.md) records the later UI checks and their limits. The bundled test clip is a generated color-bar animation and quiet tone, with no user media.
 
 ## Sources
 
