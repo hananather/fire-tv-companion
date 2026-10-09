@@ -1,0 +1,259 @@
+{
+  "captured_at_utc": "2026-10-09T20:52:04.740901+00:00",
+  "display": {
+    "airplay_displays": [
+      {
+        "available_modes": [
+          {
+            "logical_height": 480,
+            "logical_width": 640,
+            "pixel_height": 480,
+            "pixel_width": 640,
+            "refresh_hz": 60,
+            "usable_for_desktop": false
+          },
+          {
+            "logical_height": 600,
+            "logical_width": 800,
+            "pixel_height": 600,
+            "pixel_width": 800,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 300,
+            "logical_width": 400,
+            "pixel_height": 600,
+            "pixel_width": 800,
+            "refresh_hz": 60,
+            "usable_for_desktop": false
+          },
+          {
+            "logical_height": 540,
+            "logical_width": 960,
+            "pixel_height": 540,
+            "pixel_width": 960,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 576,
+            "logical_width": 1024,
+            "pixel_height": 576,
+            "pixel_width": 1024,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 768,
+            "logical_width": 1024,
+            "pixel_height": 768,
+            "pixel_width": 1024,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 384,
+            "logical_width": 512,
+            "pixel_height": 768,
+            "pixel_width": 1024,
+            "refresh_hz": 60,
+            "usable_for_desktop": false
+          },
+          {
+            "logical_height": 720,
+            "logical_width": 1280,
+            "pixel_height": 720,
+            "pixel_width": 1280,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 360,
+            "logical_width": 640,
+            "pixel_height": 720,
+            "pixel_width": 1280,
+            "refresh_hz": 60,
+            "usable_for_desktop": false
+          },
+          {
+            "logical_height": 756,
+            "logical_width": 1344,
+            "pixel_height": 756,
+            "pixel_width": 1344,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 378,
+            "logical_width": 672,
+            "pixel_height": 756,
+            "pixel_width": 1344,
+            "refresh_hz": 60,
+            "usable_for_desktop": false
+          },
+          {
+            "logical_height": 960,
+            "logical_width": 1280,
+            "pixel_height": 960,
+            "pixel_width": 1280,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 480,
+            "logical_width": 640,
+            "pixel_height": 960,
+            "pixel_width": 1280,
+            "refresh_hz": 60,
+            "usable_for_desktop": false
+          },
+          {
+            "logical_height": 1008,
+            "logical_width": 1344,
+            "pixel_height": 1008,
+            "pixel_width": 1344,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 504,
+            "logical_width": 672,
+            "pixel_height": 1008,
+            "pixel_width": 1344,
+            "refresh_hz": 60,
+            "usable_for_desktop": false
+          },
+          {
+            "logical_height": 900,
+            "logical_width": 1600,
+            "pixel_height": 900,
+            "pixel_width": 1600,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 450,
+            "logical_width": 800,
+            "pixel_height": 900,
+            "pixel_width": 1600,
+            "refresh_hz": 60,
+            "usable_for_desktop": false
+          },
+          {
+            "logical_height": 600,
+            "logical_width": 800,
+            "pixel_height": 1200,
+            "pixel_width": 1600,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 540,
+            "logical_width": 960,
+            "pixel_height": 1080,
+            "pixel_width": 1920,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          },
+          {
+            "logical_height": 1080,
+            "logical_width": 1920,
+            "pixel_height": 1080,
+            "pixel_width": 1920,
+            "refresh_hz": 60,
+            "usable_for_desktop": true
+          }
+        ],
+        "connection": "airplay",
+        "current_mode": {
+          "logical_height": 1080,
+          "logical_width": 1920,
+          "pixel_height": 1080,
+          "pixel_width": 1920,
+          "refresh_hz": 60,
+          "usable_for_desktop": true
+        },
+        "is_main": false,
+        "mirroring": false,
+        "online": true
+      }
+    ],
+    "audio_outputs": [
+      {
+        "is_default": false,
+        "kind": "built_in"
+      },
+      {
+        "is_default": true,
+        "kind": "airplay"
+      },
+      {
+        "is_default": false,
+        "kind": "other"
+      }
+    ],
+    "changes_made": false,
+    "gpu_models": [
+      "Apple M4 Pro"
+    ],
+    "hardware_model": "Mac16,7",
+    "limits": [
+      "A reported display refresh rate is not a measured delivered video frame rate.",
+      "Available modes do not establish stream bitrate, codec, chroma, or visible latency."
+    ],
+    "macos_version": "26.6.2",
+    "source": "CoreGraphics and system_profiler",
+    "wifi_link": {
+      "band": "6 GHz",
+      "limits": "Radio link readings describe the Mac-to-access-point link, not TV delivery or available throughput.",
+      "noise_dbm": -87,
+      "reported_transmit_rate_mbps": 1441,
+      "rssi_dbm": -46,
+      "source": "CoreWLAN"
+    }
+  },
+  "earlier_small_lan_sample": {
+    "captured_at_utc": "2026-10-09T20:50:03.564926+00:00",
+    "icmp_packet_loss_percent": 0.0,
+    "icmp_rtt": {
+      "maximum_ms": 7.103,
+      "median_ms": 6.495,
+      "minimum_ms": 4.878,
+      "samples": 5
+    },
+    "limits": "Same read-only helper before adding CoreWLAN link readings; neither sample measures visible latency.",
+    "tcp_7000_connection": {
+      "maximum_ms": 13.065,
+      "median_ms": 7.975,
+      "minimum_ms": 6.872,
+      "samples": 3
+    }
+  },
+  "lan": {
+    "icmp_packet_loss_percent": 0.0,
+    "icmp_rtt": {
+      "maximum_ms": 26.792,
+      "median_ms": 9.391,
+      "minimum_ms": 5.024,
+      "samples": 5
+    },
+    "limits": "Five ICMP samples and three TCP handshakes are a small LAN check, not throughput, video delivery, or visible latency measurements. Missing ICMP replies may reflect filtering.",
+    "tcp_7000_connection": {
+      "maximum_ms": 64.261,
+      "median_ms": 9.836,
+      "minimum_ms": 6.984,
+      "samples": 3
+    },
+    "tcp_failures": 0
+  },
+  "privacy": "No device names, addresses, SSIDs, unique hardware identifiers, pairing tokens, raw logs, or media paths are included.",
+  "schema_version": 1,
+  "screen_sender": {
+    "available": false,
+    "limits": "Completion metrics may appear only after disconnecting. They describe the sender session, not visible TV latency or a delivered frame rate.",
+    "lookback_seconds": 120,
+    "records": []
+  },
+  "visible_latency_ms": null
+}

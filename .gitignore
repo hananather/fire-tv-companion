@@ -1,0 +1,12 @@
+.DS_Store
+dist/
+*.app/
+*.zip
+*.dmg
+*.log
+test-frame.png
+pairing.json
+private/
+.swift-module-cache/
+__pycache__/
+*.pyc
